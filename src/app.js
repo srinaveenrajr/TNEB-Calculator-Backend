@@ -42,6 +42,9 @@ app.use(
   }),
 );
 
+// This forces the backend to respond with a "200 OK" to the browser's hidden check
+app.options("*", cors());
+
 app.use(express.json());
 
 // ✅ JWT
