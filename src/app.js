@@ -1,32 +1,55 @@
+const path = require("path");
+require("dotenv").config({
+  path: path.resolve(__dirname, "../.env"),
+});
+
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const morgan = require("morgan");
+
 const { connectDb } = require("./config/database");
 const Tables = require("./models/table");
 const History = require("./models/history");
 const User = require("./models/user");
-const { authenticate, JWT_SECRET } = require("./middleware/auth");
+const { authenticate } = require("./middleware/auth");
 const { sortSlabsForDisplay } = require("./utils/sortSlabs");
 const { computeBillAmount } = require("./utils/billCompute");
 
 const app = express();
 const SALT_ROUNDS = 10;
 
-const corsOptions = {
-  origin: "http://localhost:5173",
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
+// ✅ SECURITY
+app.use(helmet());
+app.use(morgan("combined"));
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+  }),
+);
 
-app.use(cors(corsOptions));
+// ✅ CORS (ENV BASED)
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
 app.use(express.json());
 
+// ✅ JWT
 function signToken(userId) {
-  return jwt.sign({ userId: String(userId) }, JWT_SECRET, { expiresIn: "14d" });
+  return jwt.sign({ userId: String(userId) }, process.env.JWT_SECRET, {
+    expiresIn: "14d",
+  });
 }
-
 // ─── Auth (public) ─────────────────────────────────────
 
 app.post("/auth/register", async (req, res) => {
@@ -490,10 +513,16 @@ app.delete("/history/all/clear", authenticate, async (req, res) => {
   }
 });
 
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: "Internal Server Error" });
+});
+
 connectDb()
   .then(async () => {
     await ensureDefaultTablesSeed();
-    app.listen(5000, () => console.log("Server running on port 5000"));
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch((err) => {
     console.error("Failed to start server:", err);
