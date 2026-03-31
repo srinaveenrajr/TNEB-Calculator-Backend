@@ -430,6 +430,7 @@ app.post("/history", authenticate, async (req, res) => {
     const row = await History.create({
       userId: req.userId,
       date: new Date().toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata", // Forces the time to be India Standard Time (IST)
         dateStyle: "short",
         timeStyle: "short",
         hour12: true,
