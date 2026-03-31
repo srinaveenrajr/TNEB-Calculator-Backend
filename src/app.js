@@ -429,7 +429,11 @@ app.post("/history", authenticate, async (req, res) => {
 
     const row = await History.create({
       userId: req.userId,
-      date: new Date().toLocaleDateString("en-IN"),
+      date: new Date().toLocaleString("en-IN", {
+        dateStyle: "short",
+        timeStyle: "short",
+        hour12: true,
+      }),
       reading: r,
       baseLMR,
       units,
